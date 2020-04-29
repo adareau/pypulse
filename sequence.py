@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-04-29 17:30:08
+Modified : 2020-04-29 17:54:19
 
 Comments :
 '''
@@ -16,6 +16,7 @@ from numpy import pi
 # %% Local Imports
 from plotting import plot_pulse_core, _show_plot
 from shapes import PulseShape
+
 
 # %% Class
 
@@ -86,7 +87,7 @@ class PulseSequence():
             signal = signal + pulse.profile(t, args)
         return signal
 
-    def propagator(self, T=None):
+    def propagator(self, T=None, free=False):
         '''
         Computes the propagator (evolution operator) for the pulse
         '''
@@ -103,20 +104,63 @@ class PulseSequence():
         H0 = 0.5 * delta * qt.sigmaz()
         H = [H0]
         # pulses
-        Hr_imag = 0.5 * qt.sigmay()
-        Hr_real = 0.5 * qt.sigmax()
-        for pulse in self.pulse_list:
-            H.append([Hr_real, pulse._pulse_real])
-            H.append([Hr_imag, pulse._pulse_imag])
+        if ~free:
+            Hr_imag = 0.5 * qt.sigmay()
+            Hr_real = 0.5 * qt.sigmax()
+            for pulse in self.pulse_list:
+                H.append([Hr_real, pulse._pulse_real])
+                H.append([Hr_imag, pulse._pulse_imag])
 
         # -- compute propagator and return
         U = qt.propagator(H, T)
 
         return U
 
+    def diffraction_matrix(self, T=None):
+        '''
+        Computes the diffraction matrix (without the dynamical phase) !
+        '''
+        # -- set duration if not provided
+        if T is None:
+            T_end = [p.time_offset + p.pulse_duration for p in self.pulse_list]
+            T = np.max(T_end)
+            msg = 'No time provided, use total duration (T=%.2f)' % T
+            self._p(msg)
+        # -- compute propagation
+        U = self.propagator(T)  # with pulses
+        U0 = self.propagator(0.5 * T, free=True)  # free
+        # -- compute matrix
+        D = U0.dag() * U * U0.dag()
+        return D
+
+    def get_phase_and_amp(self, T=None, delta=None, nodyn=True):
+        '''
+        Computes phase and amplitude of the diffraction matrix (nodyn=True)
+        or the propagator (nodyn=False). Either for a single detuning (delta)
+        or for a list.
+        '''
+        # -- prepare delta
+        delta_save = self.global_detuning
+        if delta is None:
+            delta = self.global_detuning
+        if ~isinstance(delta, (list, np.ndarray)):
+            delta = np.array([delta])
+
+        # -- compute
+        M = []
+        M_func = self.propagator if nodyn else self.diffraction_matrix
+        for d in delta:
+            self.global_detuning = d
+            M.append(M_func(T))
+
+        # -- restore
+        self.global_detuning = delta_save
+        return M  # TODO : pas fini !!
+
     # --- Methods : analyse and plot
 
     # - PLOTTING
+
     def plot_amp(self, t=None, ax=None, show=True, time_norm=1, amp_norm=1,
                  **kwargs):
         # get seq parameters
@@ -181,9 +225,12 @@ if __name__ == '__main__':
     seq.add_pulse(pulse_type='rect', time_offset=1.5*pi, pulse_duration=pi)
     seq.add_pulse(pulse_type='rect', time_offset=2.5*pi,
                   pulse_duration=pi, window='hanning', laser_phase=pi/6)
-    seq.plot_sequence()
-    U = seq.propagator()
-    print(U)
-
+    # seq.plot_sequence()
+    # U = seq.propagator()
+    # print(U)
+    # D = seq.diffraction_matrix()
+    # print(D)
+    M = seq.get_phase_and_amp()
+    print(M)
     # -- plot ?
     # rect_pulse.plot_pulse(time_norm=pi)
