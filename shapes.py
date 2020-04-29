@@ -2,20 +2,21 @@
 '''
 Author   : alex
 Created  : 2020-04-27 14:27:18
-Modified : 2020-04-29 15:03:37
+Modified : 2020-04-29 17:19:40
 
 Comments :
 '''
 
-# %% Imports
+# %% General Imports
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import pi
 
-# %% Functions
-
+# %% Local Imports
+from plotting import plot_pulse_core, _show_plot
 
 # %% Class
+
 
 class PulseShape():
     '''
@@ -126,64 +127,53 @@ class PulseShape():
 
     # --- Methods : analyse and plot
 
-    @staticmethod
-    def _init_plot(ax):
-        if ax is None:
-            fig, ax = plt.subplots(1, 1)
+    def plot_amp(self, t=None, ax=None, show=True, time_norm=1, amp_norm=1,
+                 **kwargs):
+        # get pulse parameters
+        Tmax = self.pulse_duration
+        t0 = self.time_offset
+        # call core plotting function
+        ax = plot_pulse_core(self.profile, t=t, Tmax=Tmax, t0=t0,
+                             type='amplitude', ax=ax, show=show,
+                             pulse_norm=amp_norm, time_norm=time_norm,
+                             **kwargs)
         return ax
 
-    @staticmethod
-    def _show_plot(show):
-        if show:
-            plt.tight_layout()
-            plt.show()
-
-    def plot_amp(self, t=None, ax=None, show=True, t_norm=1, **kwargs):
-        # initialize figure if needed
-        ax = self._init_plot(ax)
-        # time
-        if t is None:
-            T = self.pulse_duration
-            t0 = self.time_offset
-            t = np.linspace(-T * 0.05, T * 1.05, 1000) + t0
-        # plot
-        pulse_intensity = np.abs(self.profile(t, '')) ** 2
-        ax.plot(t / t_norm, pulse_intensity, **kwargs)
-        # show if neede
-        self._show_plot(show)
+    def plot_phase(self, t=None, ax=None, show=True, time_norm=1,
+                   phase_norm=pi, **kwargs):
+        # get pulse parameters
+        Tmax = self.pulse_duration
+        t0 = self.time_offset
+        # call core plotting function
+        ax = plot_pulse_core(self.profile, t=t, Tmax=Tmax, t0=t0,
+                             type='phase', ax=ax, show=show,
+                             pulse_norm=phase_norm, time_norm=time_norm,
+                             **kwargs)
         return ax
 
-    def plot_phase(self, t=None, ax=None, show=True, t_norm=1,
-                   phi_norm=pi, **kwargs):
-        # initialize figure if needed
-        ax = self._init_plot(ax)
-        # time
-        if t is None:
-            T = self.pulse_duration
-            t0 = self.time_offset
-            t = np.linspace(-T * 0.05, T * 1.05, 1000) + t0
-        # plot
-        pulse_phase = np.angle(self.profile(t, ''))
-        ax.plot(t / t_norm, pulse_phase / phi_norm, **kwargs)
-        # show if neede
-        self._show_plot(show)
-        return ax
-
-    def plot_pulse(self, t=None, ax=None, show=True, t_norm=1):
-        # initialize figure if needed
-        ax = self._init_plot(ax)
-        # plot amplitude
-        self.plot_amp(t, ax, False, t_norm, color='C0')
+    def plot_pulse(self, t=None, ax=None, show=True, time_norm=1, amp_norm=1,
+                   phase_norm=pi, **kwargs):
+        # get pulse parameters
+        Tmax = self.pulse_duration
+        t0 = self.time_offset
+        # call core plotting function
+        # amplitude (show = False)
+        ax = plot_pulse_core(self.profile, t=t, Tmax=Tmax, t0=t0,
+                             type='amplitude', ax=ax, show=False,
+                             pulse_norm=amp_norm, time_norm=time_norm,
+                             color='C0', **kwargs)
         ax.set_ylabel('amplitude')
         ax.grid()
-        # plot phase
+        # phase
         ax_phase = ax.twinx()
-        self.plot_phase(t, ax_phase, False, t_norm, pi, color='C1')
+        ax_phase = plot_pulse_core(self.profile, t=t, Tmax=Tmax, t0=t0,
+                                   type='phase', ax=ax_phase, show=False,
+                                   pulse_norm=phase_norm, time_norm=time_norm,
+                                   color='C1', **kwargs)
         ax_phase.set_ylim(-1.1, 1.1)
         ax_phase.set_ylabel('phase (units of pi)')
-        # show if neede
-        self._show_plot(show)
-        return ax
+        _show_plot(show)
+        return ax, ax_phase
 
 
 # %% Tests
@@ -191,4 +181,5 @@ class PulseShape():
 if __name__ == '__main__':
 
     rect_pulse = PulseShape(pulse_type='rect', time_offset=0)
-    rect_pulse.plot_pulse(t_norm=pi)
+    rect_pulse.laser_phase = pi/4
+    rect_pulse.plot_pulse(time_norm=pi)
