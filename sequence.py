@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-04-29 17:21:26
+Modified : 2020-04-29 17:30:08
 
 Comments :
 '''
@@ -77,6 +77,15 @@ class PulseSequence():
             pulse = PulseShape(**kwargs)
             self.pulse_list.append(pulse)
 
+    def profile(self, t, args=''):
+        '''
+        Returns the full sequence profile, with all pulses.
+        '''
+        signal = 0
+        for pulse in self.pulse_list:
+            signal = signal + pulse.profile(t, args)
+        return signal
+
     def propagator(self, T=None):
         '''
         Computes the propagator (evolution operator) for the pulse
@@ -110,9 +119,10 @@ class PulseSequence():
     # - PLOTTING
     def plot_amp(self, t=None, ax=None, show=True, time_norm=1, amp_norm=1,
                  **kwargs):
-        # get pulse parameters
-        Tmax = self.pulse_duration
-        t0 = self.time_offset
+        # get seq parameters
+        T_end = [p.time_offset + p.pulse_duration for p in self.pulse_list]
+        Tmax = np.max(T_end)
+        t0 = 0
         # call core plotting function
         ax = plot_pulse_core(self.profile, t=t, Tmax=Tmax, t0=t0,
                              type='amplitude', ax=ax, show=show,
@@ -122,15 +132,41 @@ class PulseSequence():
 
     def plot_phase(self, t=None, ax=None, show=True, time_norm=1,
                    phase_norm=pi, **kwargs):
-        # get pulse parameters
-        Tmax = self.pulse_duration
-        t0 = self.time_offset
+        # get seq parameters
+        T_end = [p.time_offset + p.pulse_duration for p in self.pulse_list]
+        Tmax = np.max(T_end)
+        t0 = 0
         # call core plotting function
         ax = plot_pulse_core(self.profile, t=t, Tmax=Tmax, t0=t0,
                              type='phase', ax=ax, show=show,
                              pulse_norm=phase_norm, time_norm=time_norm,
                              **kwargs)
         return ax
+
+    def plot_sequence(self, t=None, ax=None, show=True, time_norm=1,
+                      amp_norm=1, phase_norm=pi, **kwargs):
+        # get pulse parameters
+        T_end = [p.time_offset + p.pulse_duration for p in self.pulse_list]
+        Tmax = np.max(T_end)
+        t0 = 0
+        # call core plotting function
+        # amplitude (show = False)
+        ax = plot_pulse_core(self.profile, t=t, Tmax=Tmax, t0=t0,
+                             type='amplitude', ax=ax, show=False,
+                             pulse_norm=amp_norm, time_norm=time_norm,
+                             color='C0', **kwargs)
+        ax.set_ylabel('amplitude')
+        ax.grid()
+        # phase
+        ax_phase = ax.twinx()
+        ax_phase = plot_pulse_core(self.profile, t=t, Tmax=Tmax, t0=t0,
+                                   type='phase', ax=ax_phase, show=False,
+                                   pulse_norm=phase_norm, time_norm=time_norm,
+                                   color='C1', **kwargs)
+        ax_phase.set_ylim(-1.1, 1.1)
+        ax_phase.set_ylabel('phase (units of pi)')
+        _show_plot(show)
+        return ax, ax_phase
 
 
 # %% Tests
@@ -142,9 +178,12 @@ if __name__ == '__main__':
 
     seq = PulseSequence()
     seq.add_pulse(rect_pulse)
-    seq.add_pulse(pulse_type='rect', time_offset=pi, pulse_duration=pi)
+    seq.add_pulse(pulse_type='rect', time_offset=1.5*pi, pulse_duration=pi)
+    seq.add_pulse(pulse_type='rect', time_offset=2.5*pi,
+                  pulse_duration=pi, window='hanning', laser_phase=pi/6)
+    seq.plot_sequence()
     U = seq.propagator()
     print(U)
 
     # -- plot ?
-    rect_pulse.plot_pulse(time_norm=pi)
+    # rect_pulse.plot_pulse(time_norm=pi)
