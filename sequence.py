@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-04-30 15:59:48
+Modified : 2020-04-30 16:18:38
 
 Comments :
 '''
@@ -266,12 +266,12 @@ if __name__ == '__main__':
         print(D)
 
     # -- get phase and amp test
-    if True:
+    if False:
         seq = PulseSequence()
         seq.add_pulse(pulse_type='rect', pulse_duration=0.5*pi)
         delta = np.linspace(-5, 5, 100)
         res = seq.get_phase_and_amp(delta=delta, nodyn=True)
-        # -- plot ?
+        # - plot
         fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
         ax[0].plot(res['delta'], res['amplitude']['R'], label='R')
         ax[0].plot(res['delta'], res['amplitude']['T'], label='T')
@@ -279,6 +279,35 @@ if __name__ == '__main__':
 
         ax[1].plot(res['delta'], res['phase']['R'] / np.pi, label='R')
         ax[1].plot(res['delta'], res['phase']['T'] / np.pi, label='T')
+        for cax in ax:
+            cax.grid()
+
+        plt.show()
+
+    # -- Sinc test !
+    if True:
+        # - initialize
+        seq = PulseSequence()
+        sinc_minima = 8
+        seq.add_pulse(pulse_type='sinc',
+                      pulse_duration=0.5*pi,
+                      sinc_minima=sinc_minima,
+                      rabi_pulsation=sinc_minima*2,
+                      window='hanning')
+
+        # seq.plot_sequence()
+        # - scan detuning
+        delta = np.linspace(-50, 50, 100)
+        res = seq.get_phase_and_amp(delta=delta, nodyn=True)
+
+        # - plot
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
+        ax[0].plot(res['delta'], res['amplitude']['R'], label='R')
+        ax[0].plot(res['delta'], res['amplitude']['T'], label='T')
+        ax[0].legend()
+
+        ax[1].plot(res['delta'], res['phase']['R'] / np.pi * 180, label='R')
+        ax[1].plot(res['delta'], res['phase']['T'] / np.pi * 180, label='T')
         for cax in ax:
             cax.grid()
 
