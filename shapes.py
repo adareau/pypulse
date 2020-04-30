@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-27 14:27:18
-Modified : 2020-04-29 17:19:40
+Modified : 2020-04-30 16:07:29
 
 Comments :
 '''
@@ -37,7 +37,7 @@ class PulseShape():
         # pulse shape
         self.pulse_type = 'RECT'  # RECT|SINC
         self.window = None
-        self.auto_amplitude = False
+        self.auto_amplitude = False  # FIXME : not implemented
         self.sinc_minima = 8  # number of minima for sinc pulse
 
         # -- initialize object
@@ -110,10 +110,15 @@ class PulseShape():
         phi = self.laser_phase
         T = self.pulse_duration
         t0 = self.time_offset
+
         # -- compute profile
         tc = t-t0
         if self.pulse_type.upper() == 'RECT':
             x = OmegaR * np.exp(1j * phi)
+        elif self.pulse_type.upper() == 'SINC':
+            Nm = self.sinc_minima
+            Os = 2 * np.pi * Nm / T  # sinc frequency
+            x = OmegaR * np.sinc(Os * (tc - T / 2) / np.pi) * np.exp(1j * phi)
 
         # -- compute window
         if self.window is None:
@@ -180,6 +185,6 @@ class PulseShape():
 
 if __name__ == '__main__':
 
-    rect_pulse = PulseShape(pulse_type='rect', time_offset=0)
+    rect_pulse = PulseShape(pulse_type='sinc', time_offset=0)
     rect_pulse.laser_phase = pi/4
     rect_pulse.plot_pulse(time_norm=pi)
