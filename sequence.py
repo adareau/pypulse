@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-04-29 17:54:19
+Modified : 2020-04-30 15:59:48
 
 Comments :
 '''
@@ -43,7 +43,7 @@ class PulseSequence():
         # -- initialize default settings
 
         # hidden attributes
-        self._print = True
+        self._verbose = False
 
     # --- Hidden subroutines
 
@@ -51,7 +51,7 @@ class PulseSequence():
         '''
         used to easily enable/disable all written output
         '''
-        if self._print:
+        if self._verbose:
             print(s)
 
     # --- Methods : calculations and definitions
@@ -102,15 +102,17 @@ class PulseSequence():
         # -- define Hamiltonian
         # free Hamiltonian
         H0 = 0.5 * delta * qt.sigmaz()
-        H = [H0]
+
         # pulses
-        if ~free:
+        if not free:
+            H = [H0]
             Hr_imag = 0.5 * qt.sigmay()
             Hr_real = 0.5 * qt.sigmax()
             for pulse in self.pulse_list:
                 H.append([Hr_real, pulse._pulse_real])
                 H.append([Hr_imag, pulse._pulse_imag])
-
+        else:
+            H = H0
         # -- compute propagator and return
         U = qt.propagator(H, T)
 
@@ -126,11 +128,14 @@ class PulseSequence():
             T = np.max(T_end)
             msg = 'No time provided, use total duration (T=%.2f)' % T
             self._p(msg)
+
         # -- compute propagation
         U = self.propagator(T)  # with pulses
         U0 = self.propagator(0.5 * T, free=True)  # free
+
         # -- compute matrix
         D = U0.dag() * U * U0.dag()
+
         return D
 
     def get_phase_and_amp(self, T=None, delta=None, nodyn=True):
@@ -143,26 +148,47 @@ class PulseSequence():
         delta_save = self.global_detuning
         if delta is None:
             delta = self.global_detuning
-        if ~isinstance(delta, (list, np.ndarray)):
+        if not isinstance(delta, (list, np.ndarray)):  # FIXME : moche..
             delta = np.array([delta])
 
         # -- compute
         M = []
-        M_func = self.propagator if nodyn else self.diffraction_matrix
         for d in delta:
             self.global_detuning = d
-            M.append(M_func(T))
+            if nodyn:
+                M.append(self.diffraction_matrix(T))
+            else:
+                M.append(self.propagator(T))
+
+        # -- get phase and amplitude
+        amp = {}
+        phase = {}
+        for i in [0, 1]:
+            for j in [0, 1]:
+                key = '%i%i' % (i, j)
+                amp[key] = np.array([np.abs(m[i, j]) ** 2 for m in M])
+                phase[key] = np.array([np.angle(m[i, j]) for m in M])
+
+        phase['R'] = phase['01'] - phase['10']
+        phase['T'] = phase['00'] - phase['11']
+        amp['R'] = amp['01']
+        amp['T'] = amp['00']
+
+        result = {'amplitude': amp,
+                  'phase': phase,
+                  'delta': delta}
 
         # -- restore
         self.global_detuning = delta_save
-        return M  # TODO : pas fini !!
+
+        return result
 
     # --- Methods : analyse and plot
 
     # - PLOTTING
 
-    def plot_amp(self, t=None, ax=None, show=True, time_norm=1, amp_norm=1,
-                 **kwargs):
+    def plot_seq_amp(self, t=None, ax=None, show=True, time_norm=1, amp_norm=1,
+                     **kwargs):
         # get seq parameters
         T_end = [p.time_offset + p.pulse_duration for p in self.pulse_list]
         Tmax = np.max(T_end)
@@ -174,8 +200,8 @@ class PulseSequence():
                              **kwargs)
         return ax
 
-    def plot_phase(self, t=None, ax=None, show=True, time_norm=1,
-                   phase_norm=pi, **kwargs):
+    def plot_seq_phase(self, t=None, ax=None, show=True, time_norm=1,
+                       phase_norm=pi, **kwargs):
         # get seq parameters
         T_end = [p.time_offset + p.pulse_duration for p in self.pulse_list]
         Tmax = np.max(T_end)
@@ -217,20 +243,45 @@ class PulseSequence():
 
 if __name__ == '__main__':
 
-    rect_pulse = PulseShape(pulse_type='rect', time_offset=0)
-    rect_pulse.laser_phase = pi/4
+    # -- sequence plotting test
+    if False:
+        rect_pulse = PulseShape(pulse_type='rect', time_offset=0)
+        rect_pulse.laser_phase = pi/4
 
-    seq = PulseSequence()
-    seq.add_pulse(rect_pulse)
-    seq.add_pulse(pulse_type='rect', time_offset=1.5*pi, pulse_duration=pi)
-    seq.add_pulse(pulse_type='rect', time_offset=2.5*pi,
-                  pulse_duration=pi, window='hanning', laser_phase=pi/6)
-    # seq.plot_sequence()
-    # U = seq.propagator()
-    # print(U)
-    # D = seq.diffraction_matrix()
-    # print(D)
-    M = seq.get_phase_and_amp()
-    print(M)
-    # -- plot ?
-    # rect_pulse.plot_pulse(time_norm=pi)
+        seq = PulseSequence()
+        seq.add_pulse(rect_pulse)
+        seq.add_pulse(pulse_type='rect', time_offset=1.5*pi, pulse_duration=pi)
+        seq.add_pulse(pulse_type='rect', time_offset=2.5*pi,
+                      pulse_duration=pi, window='hanning', laser_phase=pi/6)
+        seq.plot_sequence()
+
+    # -- propagator / diffraction test
+    if False:
+        seq = PulseSequence()
+        seq.add_pulse(pulse_type='rect', pulse_duration=0.5*pi)
+        seq.global_detuning = 0.5
+        U = seq.propagator()
+        print(U)
+        D = seq.diffraction_matrix()
+        print(D)
+
+    # -- get phase and amp test
+    if True:
+        seq = PulseSequence()
+        seq.add_pulse(pulse_type='rect', pulse_duration=0.5*pi)
+        delta = np.linspace(-5, 5, 100)
+        res = seq.get_phase_and_amp(delta=delta, nodyn=True)
+        # -- plot ?
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
+        ax[0].plot(res['delta'], res['amplitude']['R'], label='R')
+        ax[0].plot(res['delta'], res['amplitude']['T'], label='T')
+        ax[0].legend()
+
+        ax[1].plot(res['delta'], res['phase']['R'] / np.pi, label='R')
+        ax[1].plot(res['delta'], res['phase']['T'] / np.pi, label='T')
+        for cax in ax:
+            cax.grid()
+
+        plt.show()
+        # rect_pulse.plot_pulse(time_norm=pi)
+
