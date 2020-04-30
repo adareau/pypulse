@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-27 14:27:18
-Modified : 2020-04-30 16:07:29
+Modified : 2020-04-30 16:22:59
 
 Comments :
 '''
@@ -39,6 +39,7 @@ class PulseShape():
         self.window = None
         self.auto_amplitude = False  # FIXME : not implemented
         self.sinc_minima = 8  # number of minima for sinc pulse
+        self.phi_sinc = 0
 
         # -- initialize object
         # update attributes based on kwargs
@@ -53,7 +54,7 @@ class PulseShape():
         checks whether current parameters are OK
         '''
         # is pulse type implemented ?
-        pulse_types = ['RECT', 'SINC']
+        pulse_types = ['RECT', 'SINC', 'SSINC']
         msg = 'Pulse type not implemented. List of implemented pulse types : '
         msg += ', '.join(pulse_types)
         assert self.pulse_type.upper() in pulse_types, msg
@@ -99,6 +100,19 @@ class PulseShape():
         out = a0 - a1 * np.cos(2*pi*x) + a2 * np.cos(4*pi*x)
         return np.where(in_pulse, out, 0)
 
+    # --- Profiles
+    @staticmethod
+    def ssinc(x, phi=0):
+        '''
+        shifted sinc !
+        '''
+        x = np.asanyarray(x, dtype=np.float)
+        x = np.pi * x
+        x = np.where(x == 0, 1e-20, x)
+        y = (np.sin(x - 0.5 * phi) + np.sin(0.5 * phi)) / x
+        y = np.where(x == 1e-20, np.cos(0.5 * phi), y)
+        return y
+
     # --- Methods : calculations
 
     def profile(self, t, args):
@@ -119,6 +133,12 @@ class PulseShape():
             Nm = self.sinc_minima
             Os = 2 * np.pi * Nm / T  # sinc frequency
             x = OmegaR * np.sinc(Os * (tc - T / 2) / np.pi) * np.exp(1j * phi)
+        elif self.pulse_type.upper() == 'SSINC':
+            Nm = self.sinc_minima
+            phi_sinc = self.phi_sinc
+            Os = 2 * np.pi * Nm / T  # sinc frequency
+            x = OmegaR * self.ssinc(Os * (tc - T / 2) / np.pi, phi_sinc)
+            x = x * np.exp(1j * phi)
 
         # -- compute window
         if self.window is None:
@@ -185,6 +205,6 @@ class PulseShape():
 
 if __name__ == '__main__':
 
-    rect_pulse = PulseShape(pulse_type='sinc', time_offset=0)
+    rect_pulse = PulseShape(pulse_type='ssinc', time_offset=0, phi_sinc=pi/2)
     rect_pulse.laser_phase = pi/4
     rect_pulse.plot_pulse(time_norm=pi)
