@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-04-30 16:25:46
+Modified : 2020-04-30 18:08:35
 
 Comments :
 '''
@@ -319,11 +319,11 @@ if __name__ == '__main__':
         seq = PulseSequence()
         sinc_minima = 10
         seq.add_pulse(pulse_type='ssinc',
-                      phi_sinc=5 * np.pi / 180,
+                      phi_sinc=10 * np.pi / 180,
                       pulse_duration=0.5*pi,
                       sinc_minima=sinc_minima,
                       rabi_pulsation=sinc_minima*2,
-                      window='hanning')
+                      window='blackman')
 
         # seq.plot_sequence()
         # - scan detuning
@@ -334,12 +334,15 @@ if __name__ == '__main__':
         fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
         ax[0].plot(res['delta'], res['amplitude']['R'], label='R')
         ax[0].plot(res['delta'], res['amplitude']['T'], label='T')
+        ax[0].set_ylabel('amplitude')
         ax[0].legend()
 
         ax[1].plot(res['delta'], res['phase']['R'] / np.pi * 180, label='R')
         ax[1].plot(res['delta'], res['phase']['T'] / np.pi * 180, label='T')
+        ax[1].set_ylabel('phase (deg.)')
         for cax in ax:
             cax.grid()
+            cax.set_xlabel('detuning')
 
         plt.show()
 
