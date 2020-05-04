@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-05-04 14:36:08
-Modified : 2020-05-04 14:37:15
+Modified : 2020-05-04 16:06:36
 
 Comments :
 '''
@@ -10,7 +10,7 @@ from sequence import PulseSequence
 from shapes import PulseShape
 from numpy import pi
 
-rect_pulse = PulseShape(pulse_type='rect', time_offset=0)
+rect_pulse = PulseShape(pulse_type='rect', time_offset=0, window='hanning')
 rect_pulse.laser_phase = pi/4
 
 seq = PulseSequence()
@@ -21,3 +21,4 @@ print(U)
 
 # -- plot ?
 rect_pulse.plot_pulse(time_norm=pi)
+seq.plot_sequence()
