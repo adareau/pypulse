@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-05-04 15:03:11
+Modified : 2020-05-04 15:29:07
 
 Comments :
 '''
@@ -34,6 +34,7 @@ class PulseSequence():
         # -- initialize default settings
         # physical parameters
         self.global_detuning = 0  # diffraction detuning
+        self.decoherence_rate = 0  # "T2"-decoherence rate #TODO !!
         self.pulse_list = []  # will contain a list of PulseShape objects
 
         # -- initialize object
@@ -113,8 +114,16 @@ class PulseSequence():
                 H.append([Hr_imag, pulse._pulse_imag])
         else:
             H = H0
+
+        # decoherence
+        if self.decoherence_rate != 0:  # FIXME: not working yet
+            gamma = self.decoherence_rate
+            c_ops = [np.sqrt(0.5 * gamma) * qt.sigmaz()]
+        else:
+            c_ops = []
+
         # -- compute propagator and return
-        U = qt.propagator(H, T)
+        U = qt.propagator(H, T, c_op_list=c_ops)
 
         return U
 
@@ -161,8 +170,15 @@ class PulseSequence():
             H.append([Hr_real, pulse._pulse_real])
             H.append([Hr_imag, pulse._pulse_imag])
 
+        # decoherence
+        if self.decoherence_rate != 0:
+            gamma = self.decoherence_rate
+            c_ops = [np.sqrt(0.5 * gamma) * qt.sigmaz()]
+        else:
+            c_ops = []
+
         # propagator
-        U = qt.propagator(H, T)
+        U = qt.propagator(H, T, c_op_list=c_ops)
 
         # -- get phase and amplitude
         amp = {}
@@ -334,10 +350,11 @@ if __name__ == '__main__':
 
     # -- time evolution
     if True:
-        seq = PulseSequence(global_detuning=0)
+        seq = PulseSequence(global_detuning=0,
+                            decoherence_rate=1e-20)
         seq.add_pulse(pulse_type='rect',
-                      pulse_duration=2*pi)
-        T = np.linspace(0, 2 * pi, 100)
+                      pulse_duration=5*pi)
+        T = np.linspace(0, 5 * pi, 500)
         res = seq.time_evolution(T)
         # - plot
         fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
