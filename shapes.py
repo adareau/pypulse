@@ -2,14 +2,13 @@
 '''
 Author   : alex
 Created  : 2020-04-27 14:27:18
-Modified : 2020-04-30 16:22:59
+Modified : 2020-05-04 14:47:48
 
 Comments :
 '''
 
 # %% General Imports
 import numpy as np
-import matplotlib.pyplot as plt
 from numpy import pi
 
 # %% Local Imports
@@ -28,7 +27,7 @@ class PulseShape():
         '''
         # -- initialize default settings
         # physical parameters
-        self.detuning = 0  # TODO: include in pulseshape
+        self.detuning = 0
         self.laser_phase = 0
         self.rabi_pulsation = 1
         self.pulse_duration = pi
@@ -140,6 +139,10 @@ class PulseShape():
             x = OmegaR * self.ssinc(Os * (tc - T / 2) / np.pi, phi_sinc)
             x = x * np.exp(1j * phi)
 
+        # -- handle detuning
+        if self.detuning != 0:
+            x = x * np.exp(1j * self.detuning * t)
+
         # -- compute window
         if self.window is None:
             window = self.square(tc / T)
@@ -207,4 +210,5 @@ if __name__ == '__main__':
 
     rect_pulse = PulseShape(pulse_type='ssinc', time_offset=0, phi_sinc=pi/2)
     rect_pulse.laser_phase = pi/4
+    rect_pulse.detuning = 1
     rect_pulse.plot_pulse(time_norm=pi)

@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-04-30 18:08:35
+Modified : 2020-05-04 15:03:11
 
 Comments :
 '''
@@ -138,6 +138,52 @@ class PulseSequence():
 
         return D
 
+    def time_evolution(self, T=None):
+        '''
+        Computes times evolution of the system
+        '''
+        # -- get parameters
+        delta = self.global_detuning
+        if T is None:
+            T_end = [p.time_offset + p.pulse_duration for p in self.pulse_list]
+            T_end = np.max(T_end)
+            T = np.linspace(0, T_end, 200)
+
+        # -- compute
+        # free Hamiltonian
+        H0 = 0.5 * delta * qt.sigmaz()
+
+        # pulses
+        H = [H0]
+        Hr_imag = 0.5 * qt.sigmay()
+        Hr_real = 0.5 * qt.sigmax()
+        for pulse in self.pulse_list:
+            H.append([Hr_real, pulse._pulse_real])
+            H.append([Hr_imag, pulse._pulse_imag])
+
+        # propagator
+        U = qt.propagator(H, T)
+
+        # -- get phase and amplitude
+        amp = {}
+        phase = {}
+        for i in [0, 1]:
+            for j in [0, 1]:
+                key = '%i%i' % (i, j)
+                amp[key] = np.array([np.abs(u[i, j]) ** 2 for u in U])
+                phase[key] = np.array([np.angle(u[i, j]) for u in U])
+
+        phase['R'] = phase['01'] - phase['10']
+        phase['T'] = phase['00'] - phase['11']
+        amp['R'] = amp['01']
+        amp['T'] = amp['00']
+
+        result = {'amplitude': amp,
+                  'phase': phase,
+                  'time': T}
+
+        return result
+
     def get_phase_and_amp(self, T=None, delta=None, nodyn=True):
         '''
         Computes phase and amplitude of the diffraction matrix (nodyn=True)
@@ -268,7 +314,9 @@ if __name__ == '__main__':
     # -- get phase and amp test
     if False:
         seq = PulseSequence()
-        seq.add_pulse(pulse_type='rect', pulse_duration=0.5*pi)
+        seq.add_pulse(pulse_type='rect',
+                      pulse_duration=0.5*pi,
+                      detuning=0)
         delta = np.linspace(-5, 5, 100)
         res = seq.get_phase_and_amp(delta=delta, nodyn=True)
         # - plot
@@ -279,6 +327,26 @@ if __name__ == '__main__':
 
         ax[1].plot(res['delta'], res['phase']['R'] / np.pi, label='R')
         ax[1].plot(res['delta'], res['phase']['T'] / np.pi, label='T')
+        for cax in ax:
+            cax.grid()
+
+        plt.show()
+
+    # -- time evolution
+    if True:
+        seq = PulseSequence(global_detuning=0)
+        seq.add_pulse(pulse_type='rect',
+                      pulse_duration=2*pi)
+        T = np.linspace(0, 2 * pi, 100)
+        res = seq.time_evolution(T)
+        # - plot
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
+        ax[0].plot(res['time'], res['amplitude']['01'], label='R')
+        ax[0].plot(res['time'], res['amplitude']['00'], label='T')
+        ax[0].legend()
+
+        ax[1].plot(res['time'], res['phase']['01'] / np.pi, label='R')
+        ax[1].plot(res['time'], res['phase']['00'] / np.pi, label='T')
         for cax in ax:
             cax.grid()
 
@@ -314,7 +382,7 @@ if __name__ == '__main__':
         plt.show()
 
     # -- SSinc test !
-    if True:
+    if False:
         # - initialize
         seq = PulseSequence()
         sinc_minima = 10
