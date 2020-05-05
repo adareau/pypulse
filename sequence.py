@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-05-04 16:17:00
+Modified : 2020-05-05 14:59:04
 
 Comments :
 '''
@@ -88,7 +88,7 @@ class PulseSequence():
             signal = signal + pulse.profile(t, args)
         return signal
 
-    def propagator(self, T=None, free=False):
+    def propagator(self, T=None, free=False, ode_options={}):
         '''
         Computes the propagator (evolution operator) for the pulse
         '''
@@ -123,11 +123,11 @@ class PulseSequence():
             c_ops = []
 
         # -- compute propagator and return
-        U = qt.propagator(H, T, c_op_list=c_ops)
+        U = qt.propagator(H, T, c_op_list=c_ops, options=qt.Options(**ode_options))
 
         return U
 
-    def diffraction_matrix(self, T=None):
+    def diffraction_matrix(self, T=None, ode_options={}):
         '''
         Computes the diffraction matrix (without the dynamical phase) !
         '''
@@ -139,15 +139,17 @@ class PulseSequence():
             self._p(msg)
 
         # -- compute propagation
-        U = self.propagator(T)  # with pulses
-        U0 = self.propagator(0.5 * T, free=True)  # free
+        # with pulses
+        U = self.propagator(T, ode_options=ode_options)
+        # free
+        U0 = self.propagator(0.5 * T, free=True, ode_options=ode_options)
 
         # -- compute matrix
         D = U0.dag() * U * U0.dag()
 
         return D
 
-    def time_evolution(self, T=None):
+    def time_evolution(self, T=None, ode_options={}):
         '''
         Computes times evolution of the system
         '''
@@ -178,7 +180,7 @@ class PulseSequence():
             c_ops = []
 
         # propagator
-        U = qt.propagator(H, T, c_op_list=c_ops)
+        U = qt.propagator(H, T, c_op_list=c_ops, options=ode_options)
 
         # -- get phase and amplitude
         amp = {}
@@ -200,7 +202,8 @@ class PulseSequence():
 
         return result
 
-    def get_phase_and_amp(self, T=None, delta=None, nodyn=True):
+    def get_phase_and_amp(self, T=None, delta=None, nodyn=True,
+                          ode_options={}):
         '''
         Computes phase and amplitude of the diffraction matrix (nodyn=True)
         or the propagator (nodyn=False). Either for a single detuning (delta)
@@ -218,9 +221,9 @@ class PulseSequence():
         for d in delta:
             self.global_detuning = d
             if nodyn:
-                M.append(self.diffraction_matrix(T))
+                M.append(self.diffraction_matrix(T, ode_options=ode_options))
             else:
-                M.append(self.propagator(T))
+                M.append(self.propagator(T, ode_options=ode_options))
 
         # -- get phase and amplitude
         amp = {}
@@ -349,7 +352,7 @@ if __name__ == '__main__':
         plt.show()
 
     # -- time evolution
-    if True:
+    if False:
         seq = PulseSequence(global_detuning=0,
                             decoherence_rate=1e-20)
         seq.add_pulse(pulse_type='rect',
@@ -370,7 +373,7 @@ if __name__ == '__main__':
         plt.show()
 
     # -- Sinc test !
-    if False:
+    if True:
         # - initialize
         seq = PulseSequence()
         sinc_minima = 8
@@ -383,7 +386,8 @@ if __name__ == '__main__':
         # seq.plot_sequence()
         # - scan detuning
         delta = np.linspace(-50, 50, 100)
-        res = seq.get_phase_and_amp(delta=delta, nodyn=True)
+        res = seq.get_phase_and_amp(delta=delta, nodyn=True,
+                                    ode_options={'nsteps': 1000})
 
         # - plot
         fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
