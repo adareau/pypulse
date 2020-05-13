@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-29 14:58:05
-Modified : 2020-05-05 14:59:04
+Modified : 2020-05-07 18:15:05
 
 Comments :
 '''
@@ -303,6 +303,32 @@ class PulseSequence():
         _show_plot(show)
         return ax, ax_phase
 
+    def plot_phase_and_amp(self, delta_scale=1, show=True, **kwargs):
+        res = self.get_phase_and_amp(**kwargs)
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True)
+        ax[0].plot(res['delta'] / delta_scale,
+                   res['amplitude']['R'], label='R')
+        ax[0].legend()
+        ax[0].set_ylabel('amplitude')
+
+        ax[1].plot(res['delta'] / delta_scale,
+                   res['phase']['R'] / np.pi, label='R')
+        ax[1].plot(res['delta'] / delta_scale,
+                   res['phase']['T'] / np.pi, label='T')
+        ax[1].set_ylabel('phase (units of pi)')
+        ax[1].legend()
+
+        for cax in ax:
+            cax.grid()
+            cax.set_xlabel('detuning')
+            cax.set_xlim(res['delta'].min() / delta_scale,
+                         res['delta'].max() / delta_scale)
+        if show:
+            plt.show()
+            return
+        else:
+            return fig, ax
+
 
 # %% Tests
 
@@ -351,6 +377,15 @@ if __name__ == '__main__':
 
         plt.show()
 
+    # -- plot phase and amp test
+    if True:
+        seq = PulseSequence()
+        seq.add_pulse(pulse_type='rect',
+                      pulse_duration=0.5*pi,
+                      detuning=0)
+        delta = np.linspace(-5, 5, 100)
+        res = seq.plot_phase_and_amp(delta=delta, nodyn=True)
+
     # -- time evolution
     if False:
         seq = PulseSequence(global_detuning=0,
@@ -373,7 +408,7 @@ if __name__ == '__main__':
         plt.show()
 
     # -- Sinc test !
-    if True:
+    if False:
         # - initialize
         seq = PulseSequence()
         sinc_minima = 8
