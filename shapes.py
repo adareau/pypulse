@@ -2,7 +2,7 @@
 '''
 Author   : alex
 Created  : 2020-04-27 14:27:18
-Modified : 2020-05-04 14:47:48
+Modified : 2020-05-13 14:53:50
 
 Comments :
 '''
@@ -34,7 +34,7 @@ class PulseShape():
         self.time_offset = 0
 
         # pulse shape
-        self.pulse_type = 'RECT'  # RECT|SINC
+        self.pulse_type = 'RECT'  # RECT|SINC|SSINC
         self.window = None
         self.auto_amplitude = False  # FIXME : not implemented
         self.sinc_minima = 8  # number of minima for sinc pulse
